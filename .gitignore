@@ -1,0 +1,28 @@
+# Virtual environment
+venv/
+
+# Clips — never commit alert videos
+backend/clips/
+
+# Test videos uploaded through the system
+backend/test_videos/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Raw clip files from OpenCV (before FFmpeg re-encode)
+*_raw.mp4
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
