@@ -1,11 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 from app.camera_manager import camera_manager
 import cv2
+import os
+import uuid
+import shutil
 
 router = APIRouter()
+
+UPLOAD_DIR = "uploaded_videos"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+ALLOWED_VIDEO_EXT = {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".webm"}
 
 
 class AddCameraRequest(BaseModel):
@@ -19,9 +26,39 @@ def add_camera(req: AddCameraRequest):
     camera_id = camera_manager.add_camera(
         name=req.name,
         rtsp_url=req.rtsp_url,
-        roi=req.roi
+        roi=req.roi,
+        source_type="rtsp"
     )
     return {"message": "Camera added", "camera_id": camera_id}
+
+
+@router.post("/cameras/upload")
+def upload_video(name: str = Form(...), file: UploadFile = File(...)):
+    """
+    Upload a recorded video (mp4/mov/avi/mkv). It is saved to disk and run
+    through the exact same detection + clip-writing pipeline as an RTSP
+    camera, except it plays once and then reports status 'completed'
+    instead of endlessly retrying like a live stream.
+    """
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_VIDEO_EXT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported video type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_VIDEO_EXT))}"
+        )
+
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    dest_path = os.path.join(UPLOAD_DIR, safe_name)
+    with open(dest_path, "wb") as out:
+        shutil.copyfileobj(file.file, out)
+
+    camera_id = camera_manager.add_camera(
+        name=name,
+        rtsp_url=dest_path,
+        roi=None,
+        source_type="file"
+    )
+    return {"message": "Video uploaded and processing started", "camera_id": camera_id}
 
 
 @router.delete("/cameras/{camera_id}")

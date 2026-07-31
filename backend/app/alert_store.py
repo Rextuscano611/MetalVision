@@ -19,7 +19,9 @@ class AlertStore:
             "clip_path": clip_path,
             "clip_filename": os.path.basename(clip_path),
             "duration_sec": round(duration_sec, 1),
-            "peak_pixels": peak_pixels
+            "peak_pixels": peak_pixels,
+            "acknowledged": False,
+            "acknowledged_at": None,
         }
         with self._lock:
             self._alerts.insert(0, alert)  # newest first
@@ -42,6 +44,16 @@ class AlertStore:
                         print(f"Deleted clip: {clip_path}")
                     return True
         return False
+
+    def acknowledge(self, alert_id):
+        """Mark an alert as reviewed. Returns the updated alert dict, or None if not found."""
+        with self._lock:
+            for a in self._alerts:
+                if a["id"] == alert_id:
+                    a["acknowledged"] = True
+                    a["acknowledged_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    return dict(a)
+        return None
 
     def count(self):
         with self._lock:

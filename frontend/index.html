@@ -7,19 +7,21 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0F0F0F;
-  --bg2: #1A1A1A;
-  --bg3: #242424;
-  --line: #2E2E2E;
-  --ink: #E8E6E0;
-  --ink-soft: #7A7570;
-  --accent: #C0392B;
-  --accent-soft: #2D1410;
-  --green: #27AE60;
-  --green-bg: #0D1F14;
-  --amber: #E67E22;
-  --amber-bg: #1F1608;
+  --bg: #F4F3EE;
+  --bg2: #EAE8E0;
+  --bg3: #E0DDD3;
+  --line: #D6D2C4;
+  --ink: #1A1A18;
+  --ink-soft: #8A8478;
+  --accent: #C0392B;        /* red — camera offline / destructive actions */
+  --accent-soft: #F5E2DF;
+  --green: #2E7D32;         /* camera active — all good */
+  --green-bg: #E3EFE3;
+  --amber: #B45309;         /* alert detected — attention needed */
+  --amber-bg: #F6E9D8;
   --white: #F4F3EE;
+  --primary: #1A1A18;       /* neutral dark for primary buttons */
+  --primary-ink: #F4F3EE;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; min-height: 100vh; }
@@ -34,7 +36,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 .logo { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
 .topbar-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
 .alert-badge {
-  background: var(--accent); color: white;
+  background: var(--amber); color: var(--white);
   font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
   padding: 3px 10px; border-radius: 20px; display: none;
 }
@@ -63,7 +65,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
   color: var(--ink); font-family: 'IBM Plex Mono', monospace; font-size: 12px;
   padding: 8px 10px; border-radius: 4px; outline: none; width: 100%;
 }
-.form-input:focus { border-color: var(--accent); }
+.form-input:focus { border-color: var(--primary); }
 .form-input::placeholder { color: var(--ink-soft); }
 
 .btn {
@@ -72,10 +74,22 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
   transition: opacity 0.15s; width: 100%;
 }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-red { background: var(--accent); color: white; }
+.btn-red { background: var(--primary); color: var(--primary-ink); }
 .btn-red:hover:not(:disabled) { opacity: 0.85; }
 .btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
 .btn-ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+/* SOURCE TABS */
+.source-tab {
+  flex: 1; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 7px 8px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--bg3); color: var(--ink-soft); cursor: pointer; transition: all 0.15s;
+}
+.source-tab.active { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+
+/* PROGRESS BAR (video upload processing) */
+.progress-track { background: var(--bg3); border-radius: 3px; height: 5px; overflow: hidden; margin-bottom: 8px; }
+.progress-fill { background: var(--green); height: 100%; transition: width 0.4s ease; }
 
 /* ROI CANVAS */
 .canvas-wrap {
@@ -98,7 +112,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 
 /* CAMERA CARDS */
 .camera-card {
-  background: var(--bg3); border: 1px solid var(--line);
+  background: var(--bg); border: 1px solid var(--line);
   border-radius: 5px; padding: 12px; margin-bottom: 10px;
 }
 .camera-card:last-child { margin-bottom: 0; }
@@ -110,6 +124,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 .status-dot.disconnected { background: var(--accent); }
 .status-dot.connecting { background: var(--amber); animation: pulse 1s infinite; }
 .status-dot.stopped { background: var(--ink-soft); }
+.status-dot.completed { background: var(--green); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 .status-label { font-size: 11px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
 .camera-url { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-soft); margin-bottom: 8px; word-break: break-all; }
@@ -124,7 +139,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 .btn-sm-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
 .btn-sm-ghost:hover { color: var(--ink); }
 .btn-sm-danger { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-.btn-sm-danger:hover { background: var(--accent); color: white; }
+.btn-sm-danger:hover { background: var(--accent); color: var(--white); }
 .no-cameras { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); text-align: center; padding: 24px 0; }
 
 /* MAIN — ALERTS */
@@ -141,21 +156,35 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 /* ALERT CARDS */
 .alert-card {
   background: var(--bg2); border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--amber);
   border-radius: 5px; padding: 14px; margin-bottom: 12px;
   animation: slideIn 0.3s ease;
 }
 @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
 .alert-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .alert-meta { display: flex; align-items: center; gap: 10px; }
-.alert-icon { color: var(--accent); font-size: 14px; }
+.alert-icon { color: var(--amber); font-size: 14px; }
 .alert-cam { font-size: 12px; font-weight: 600; }
 .alert-time { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+.alert-header-actions { display: flex; align-items: center; gap: 6px; }
 .alert-delete {
   background: transparent; border: 1px solid var(--line); color: var(--ink-soft);
   font-size: 11px; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-weight: 600;
 }
 .alert-delete:hover { border-color: var(--accent); color: var(--accent); }
+.alert-ack {
+  background: transparent; border: 1px solid var(--amber); color: var(--amber);
+  font-size: 11px; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-weight: 600;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.alert-ack:hover:not(:disabled) { background: var(--amber); color: var(--white); }
+.alert-ack.acked {
+  background: var(--green); border-color: var(--green); color: var(--white);
+  cursor: default; opacity: 0.9;
+}
+.alert-ack.acked:hover { background: var(--green); color: var(--white); }
+.alert-ack:disabled { cursor: default; }
+.alert-card.acked { border-left-color: var(--green); opacity: 0.75; }
 .alert-video { width: 100%; border-radius: 4px; background: #000; display: block; margin-bottom: 8px; max-height: 200px; }
 .alert-stats { display: flex; gap: 14px; }
 .alert-stat { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-soft); }
@@ -176,7 +205,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-left">
-    <div class="logo">ALERTTRACE</div>
+    <div class="logo">Sovereign Metals Limited</div>
     <div class="topbar-sub">Metal Detector Monitor</div>
   </div>
   <div class="alert-badge" id="alertBadge">0 alerts</div>
@@ -189,24 +218,43 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 
     <!-- ADD CAMERA -->
     <div class="sidebar-section">
-      <div class="section-title">Add Camera</div>
+      <div class="section-title">Add Source</div>
+
+      <!-- Source type tabs -->
+      <div class="source-tabs" style="display:flex;gap:6px;margin-bottom:14px;">
+        <button type="button" class="source-tab active" id="tabRtsp" onclick="switchSourceTab('rtsp')">Live RTSP</button>
+        <button type="button" class="source-tab" id="tabUpload" onclick="switchSourceTab('upload')">Upload Video</button>
+      </div>
 
       <div class="form-field">
         <div class="form-label">Camera Name</div>
         <input class="form-input" id="camName" placeholder="e.g. Room 1 Checkpoint">
       </div>
 
-      <div class="form-field">
-        <div class="form-label">RTSP URL</div>
-        <input class="form-input" id="camUrl" placeholder="rtsp://user:pass@ip:554/stream">
+      <!-- RTSP fields -->
+      <div id="rtspFields">
+        <div class="form-field">
+          <div class="form-label">RTSP URL</div>
+          <input class="form-input" id="camUrl" placeholder="rtsp://user:pass@ip:554/stream">
+        </div>
+      </div>
+
+      <!-- Upload fields -->
+      <div id="uploadFields" style="display:none;">
+        <div class="form-field">
+          <div class="form-label">Video File (mp4, mov, avi, mkv)</div>
+          <input class="form-input" type="file" id="camFile" accept=".mp4,.mov,.avi,.mkv,.m4v,.webm">
+        </div>
+        <div class="roi-hint">The video is processed once, end-to-end, through the same red-LED detector used for live cameras. Alerts appear in the feed as soon as they're found.</div>
       </div>
 
       <!-- ROI Canvas -->
       <div class="form-label" style="margin-bottom:6px;">ROI (optional)</div>
-      <div class="roi-hint">Add the camera first, then use "Set ROI" to draw a detection zone on the live frame.</div>
+      <div class="roi-hint">Add the source first, then use "Set ROI" to draw a detection zone on the frame.</div>
       <div class="roi-info empty" id="roiInfo">No ROI — full frame monitored</div>
 
       <button class="btn btn-red" id="addCamBtn">Add Camera</button>
+      <button class="btn btn-red" id="uploadCamBtn" style="display:none;">Upload &amp; Start</button>
     </div>
 
     <!-- CAMERA LIST -->
@@ -237,7 +285,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 </div>
 
 <!-- ROI MODAL -->
-<div id="roiModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;display:none;align-items:center;justify-content:center;">
+<div id="roiModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,24,0.55);z-index:100;display:none;align-items:center;justify-content:center;">
   <div style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:24px;width:640px;max-width:95vw;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div style="font-weight:600;font-size:14px;">Set ROI — <span id="modalCamName"></span></div>
@@ -256,7 +304,7 @@ body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-seri
 </div>
 
 <script>
-const API = "http://127.0.0.1:8000/api";
+const API = "/api";
 let pollTimer = null;
 let roiModalCameraId = null;
 let modalRoi = null;
@@ -292,16 +340,25 @@ function renderCameras(cameras) {
     el.innerHTML = '<div class="no-cameras">No cameras added yet</div>';
     return;
   }
-  el.innerHTML = cameras.map(cam => `
+  el.innerHTML = cameras.map(cam => {
+    const isFile = cam.source_type === 'file';
+    const sourceLabel = isFile
+      ? `Uploaded video — ${cam.rtsp_url.split(/[\\/]/).pop()}`
+      : cam.rtsp_url;
+    const progressBar = (isFile && cam.status !== 'completed')
+      ? `<div class="progress-track"><div class="progress-fill" style="width:${cam.progress_pct || 0}%"></div></div>`
+      : '';
+    return `
     <div class="camera-card">
       <div class="camera-header">
         <div class="camera-name">${cam.name}</div>
         <div class="status-dot-wrap">
           <div class="status-dot ${cam.status}"></div>
-          <div class="status-label">${cam.status.toUpperCase()}</div>
+          <div class="status-label">${cam.status === 'completed' ? 'DONE' : cam.status.toUpperCase()}${isFile && cam.status !== 'completed' ? ' · ' + (cam.progress_pct || 0) + '%' : ''}</div>
         </div>
       </div>
-      <div class="camera-url">${cam.rtsp_url}</div>
+      <div class="camera-url">${sourceLabel}</div>
+      ${progressBar}
       <div class="camera-stats">
         <div class="stat">frames <span>${cam.frame_count}</span></div>
         <div class="stat">alerts <span>${cam.alert_count}</span></div>
@@ -312,7 +369,19 @@ function renderCameras(cameras) {
         <button class="btn-sm btn-sm-danger" onclick="removeCamera('${cam.id}')">Remove</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+// ── SOURCE TABS (RTSP vs Upload) ────────────────
+function switchSourceTab(tab) {
+  const isRtsp = tab === 'rtsp';
+  document.getElementById('tabRtsp').classList.toggle('active', isRtsp);
+  document.getElementById('tabUpload').classList.toggle('active', !isRtsp);
+  document.getElementById('rtspFields').style.display = isRtsp ? 'block' : 'none';
+  document.getElementById('uploadFields').style.display = isRtsp ? 'none' : 'block';
+  document.getElementById('addCamBtn').style.display = isRtsp ? 'block' : 'none';
+  document.getElementById('uploadCamBtn').style.display = isRtsp ? 'none' : 'block';
 }
 
 document.getElementById('addCamBtn').addEventListener('click', async () => {
@@ -335,6 +404,32 @@ document.getElementById('addCamBtn').addEventListener('click', async () => {
     }
   } catch { alert('Cannot reach server.'); }
   finally { btn.disabled = false; btn.textContent = 'Add Camera'; }
+});
+
+document.getElementById('uploadCamBtn').addEventListener('click', async () => {
+  const name = document.getElementById('camName').value.trim();
+  const fileInput = document.getElementById('camFile');
+  const file = fileInput.files[0];
+  if (!name || !file) { alert('Please enter a name and choose a video file'); return; }
+  const btn = document.getElementById('uploadCamBtn');
+  btn.disabled = true; btn.textContent = 'Uploading...';
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('file', file);
+    const res = await fetch(`${API}/cameras/upload`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Upload failed');
+    }
+    const data = await res.json();
+    if (data.camera_id) {
+      document.getElementById('camName').value = '';
+      fileInput.value = '';
+      refreshCameras();
+    }
+  } catch (e) { alert(e.message || 'Cannot reach server.'); }
+  finally { btn.disabled = false; btn.textContent = 'Upload & Start'; }
 });
 
 async function removeCamera(cameraId) {
@@ -404,9 +499,9 @@ modalCanvas.addEventListener('mousemove', e => {
   const scaleY = modalCanvas.height / r.height;
   const sx = modalStartX * scaleX, sy = modalStartY * scaleY;
   const ex = cx * scaleX, ey = cy * scaleY;
-  modalCtx.strokeStyle = '#C0392B'; modalCtx.lineWidth = 3; modalCtx.setLineDash([6,3]);
+  modalCtx.strokeStyle = '#B45309'; modalCtx.lineWidth = 3; modalCtx.setLineDash([6,3]);
   modalCtx.strokeRect(sx, sy, ex-sx, ey-sy);
-  modalCtx.fillStyle = 'rgba(192,57,43,0.12)';
+  modalCtx.fillStyle = 'rgba(180,83,9,0.14)';
   modalCtx.fillRect(sx, sy, ex-sx, ey-sy);
 });
 
@@ -492,8 +587,9 @@ function renderAlerts(alerts, count) {
     const cardId = `alert-${a.id}`;
     if (existingIds.has(cardId)) continue;  // already rendered — skip
 
+    const acked = !!a.acknowledged;
     const card = document.createElement('div');
-    card.className = 'alert-card';
+    card.className = 'alert-card' + (acked ? ' acked' : '');
     card.id = cardId;
     card.innerHTML = `
       <div class="alert-card-header">
@@ -504,7 +600,13 @@ function renderAlerts(alerts, count) {
             <div class="alert-time">${a.timestamp}</div>
           </div>
         </div>
-        <button class="alert-delete" onclick="deleteAlert('${a.id}')">Delete</button>
+        <div class="alert-header-actions">
+          <button class="alert-ack ${acked ? 'acked' : ''}" id="ack-${a.id}"
+            onclick="acknowledgeAlert('${a.id}')" ${acked ? 'disabled' : ''}>
+            ${acked ? '✓ Acknowledged' : 'Acknowledge'}
+          </button>
+          <button class="alert-delete" onclick="deleteAlert('${a.id}')">Delete</button>
+        </div>
       </div>
       <video class="alert-video" controls preload="metadata"
         src="${API}/alerts/clip/${encodeURIComponent(a.clip_filename)}"></video>
@@ -524,6 +626,34 @@ function renderAlerts(alerts, count) {
     if (!alerts.find(a => a.id === id)) {
       el.remove();
     }
+  }
+}
+
+async function acknowledgeAlert(alertId) {
+  const btn = document.getElementById(`ack-${alertId}`);
+  const card = document.getElementById(`alert-${alertId}`);
+  if (!btn || btn.disabled) return;
+
+  // Optimistic update
+  btn.disabled = true;
+  btn.textContent = '✓ Acknowledged';
+  btn.classList.add('acked');
+  if (card) card.classList.add('acked');
+
+  try {
+    const res = await fetch(`${API}/alerts/${alertId}/ack`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acknowledged: true })
+    });
+    if (!res.ok) throw new Error('ack failed');
+  } catch {
+    // Roll back on failure
+    btn.disabled = false;
+    btn.textContent = 'Acknowledge';
+    btn.classList.remove('acked');
+    if (card) card.classList.remove('acked');
+    alert('Could not save acknowledgement. Try again.');
   }
 }
 

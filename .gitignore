@@ -26,3 +26,6 @@ Thumbs.db
 
 # Environment variables
 .env
+
+run.txt
+backend/uploaded_videos/

@@ -9,7 +9,7 @@ class CameraManager:
         self._lock = threading.Lock()
         self._counter = 0
 
-    def add_camera(self, name, rtsp_url, roi=None):
+    def add_camera(self, name, rtsp_url, roi=None, source_type=None):
         with self._lock:
             self._counter += 1
             camera_id = f"cam_{self._counter}"
@@ -18,13 +18,15 @@ class CameraManager:
             camera_id=camera_id,
             camera_name=name,
             rtsp_url=rtsp_url,
-            roi=roi
+            roi=roi,
+            source_type=source_type
         )
         camera = {
             "id": camera_id,
             "name": name,
             "rtsp_url": rtsp_url,
             "roi": roi,
+            "source_type": worker.source_type,
             "worker": worker
         }
         with self._lock:
@@ -53,9 +55,11 @@ class CameraManager:
                     "name": cam["name"],
                     "rtsp_url": cam["rtsp_url"],
                     "roi": cam["roi"],
+                    "source_type": cam.get("source_type", "rtsp"),
                     "status": w.status,
                     "frame_count": w.frame_count,
-                    "alert_count": w.alert_count
+                    "alert_count": w.alert_count,
+                    "progress_pct": getattr(w, "progress_pct", 0)
                 })
             return result
 

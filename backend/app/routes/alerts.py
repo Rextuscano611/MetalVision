@@ -1,9 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 from app.alert_store import alert_store
 import os
 
 router = APIRouter()
+
+
+class AckRequest(BaseModel):
+    acknowledged: bool = True
 
 
 @router.get("/alerts")
@@ -59,6 +64,14 @@ def get_clip(filename: str, request: Request):
         media_type="video/mp4",
         headers={"Accept-Ranges": "bytes"}
     )
+
+
+@router.patch("/alerts/{alert_id}/ack")
+def acknowledge_alert(alert_id: str, req: AckRequest):
+    alert = alert_store.acknowledge(alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
 
 
 @router.delete("/alerts/{alert_id}")
