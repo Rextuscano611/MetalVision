@@ -1,6 +1,6 @@
-# AlertTrace
+# MetalVision
 
-A lightweight monitoring system that watches RTSP camera streams (or uploaded video files) for a specific red-LED trigger, records the moment it happens as a short clip, and surfaces it as an alert with a bounding box drawn around the detection.
+A CCTV-based monitoring system that uses OpenCV to watch a metal detector's red alert LED in real time, automatically records the triggering moment as a short clip, and surfaces it as a reviewable alert with the detection highlighted by a bounding box.
 
 Built with **FastAPI + OpenCV** on the backend and a single-file **vanilla HTML/JS** dashboard on the frontend.
 
@@ -23,7 +23,7 @@ Built with **FastAPI + OpenCV** on the backend and a single-file **vanilla HTML/
 ## Project structure
 
 ```
-alerttrace/
+metalvision/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, CORS, static frontend mount
@@ -58,7 +58,7 @@ alerttrace/
 
 ```powershell
 git clone <this-repo-url>
-cd alerttrace
+cd metalvision
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 cd backend
@@ -69,7 +69,7 @@ pip install -r requirements.txt
 
 **Terminal 1 — backend:**
 ```powershell
-cd alerttrace
+cd metalvision
 .\venv\Scripts\Activate.ps1
 cd backend
 uvicorn app.main:app --reload
@@ -111,20 +111,6 @@ Both are also available from the dashboard UI via the "Live RTSP" / "Upload Vide
 | `GET` | `/api/alerts` | List all alerts |
 | `GET` | `/api/alerts/{id}/clip` | Stream a saved alert clip |
 | `GET` | `/health` | Health check |
-
----
-
-## Deployment
-
-Currently deployed on a Ubuntu server, run as a `systemd` service (`alerttrace.service`) so it survives reboots/crashes, listening on port `8010`. The frontend is served from the same FastAPI app/port — no separate frontend process or port needed.
-
-```bash
-systemctl status alerttrace     # check status
-systemctl restart alerttrace    # after deploying new code
-journalctl -u alerttrace -f     # live logs
-```
-
-To deploy a code change: `scp` the changed file(s) to the server, then `systemctl restart alerttrace`.
 
 ---
 
