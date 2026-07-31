@@ -1,5 +1,7 @@
 # MetalVision
 
+![MetalVision demo](docs/demo.gif)
+
 A CCTV-based monitoring system that uses OpenCV to watch a metal detector's red alert LED in real time, automatically records the triggering moment as a short clip, and surfaces it as a reviewable alert with the detection highlighted by a bounding box.
 
 Built with **FastAPI + OpenCV** on the backend and a single-file **vanilla HTML/JS** dashboard on the frontend.
