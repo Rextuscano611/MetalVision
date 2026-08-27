@@ -2,29 +2,75 @@ import cv2
 import threading
 import time
 import os
+import math
+import numpy as np
 from datetime import datetime
 from app.colour_detector import detect_red
 from app.clip_writer import ClipWriter
 from app.alert_store import alert_store
+from app.paths import CLIPS_DIR
 
-CLIPS_DIR = "clips"
 BBOX_HOLD_SEC = 1.5   # keep showing the last box this long after detection drops out,
                       # so it doesn't flicker on/off between frames
 
 
-def _annotate_frame(frame, roi=None, bbox=None):
-    """Draws the ROI outline (thin gray, if set) and the detected-red bounding
-    box (red, with label, if a detection was made) directly onto the frame.
-    Mutates and returns the frame in place."""
+def _annotate_frame(frame, roi=None, bbox=None, t=0.0):
+    """Draws the ROI outline (thin gray, if set). When a detection (or a held
+    detection, see BBOX_HOLD_SEC) is active, also draws a high-visibility
+    alert overlay that's impossible to miss at a glance:
+      1. A pulsing red border around the ENTIRE frame
+      2. A bold translucent banner across the top with a warning icon + text
+      3. A precise box on the exact detected pixels
+    `t` is elapsed VIDEO time in seconds (frame_count / fps), not wall-clock —
+    that keeps the pulse animating at a consistent visual rate whether this is
+    a live RTSP feed or an uploaded file being processed faster than real-time.
+    Mutates and returns the frame in place.
+    """
+    h, w = frame.shape[:2]
+
     if roi:
         rx1, ry1, rx2, ry2 = roi
         cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (150, 150, 150), 1)
-    if bbox:
-        bx1, by1, bx2, by2 = bbox
-        cv2.rectangle(frame, (bx1, by1), (bx2, by2), (0, 0, 255), 2)
-        label_y = by1 - 8 if by1 - 8 > 12 else by1 + 18
-        cv2.putText(frame, "Metal DETECTED", (bx1, label_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+
+    if not bbox:
+        return frame
+
+    bx1, by1, bx2, by2 = bbox
+    red = (0, 0, 255)
+
+    # Pulse 0..1, ~2 cycles/sec of video time
+    pulse = (math.sin(t * 2 * math.pi * 2) + 1) / 2
+
+    # 1) Full-frame pulsing border — the whole footage "flashes" red
+    border = int(8 + pulse * 10)
+    cv2.rectangle(frame, (0, 0), (w - 1, h - 1), red, border)
+
+    # 2) Bold translucent banner across the top
+    banner_h = max(46, h // 10)
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 0), (w, banner_h), red, -1)
+    cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
+
+    # Warning-triangle icon on the left of the banner
+    icon_cx, icon_cy = banner_h // 2 + 12, banner_h // 2
+    icon_size = int(banner_h * 0.32)
+    tri = np.array([
+        [icon_cx, icon_cy - icon_size],
+        [icon_cx - icon_size, icon_cy + icon_size],
+        [icon_cx + icon_size, icon_cy + icon_size]
+    ], np.int32)
+    cv2.polylines(frame, [tri], True, (255, 255, 255), 3, cv2.LINE_AA)
+    cv2.line(frame, (icon_cx, icon_cy - icon_size // 3), (icon_cx, icon_cy + icon_size // 6), (255, 255, 255), 3)
+    cv2.circle(frame, (icon_cx, icon_cy + icon_size // 2 + 2), 3, (255, 255, 255), -1)
+
+    label = "METAL DETECTED"
+    font_scale = banner_h / 50.0
+    cv2.putText(frame, label, (icon_cx + icon_size + 15, int(banner_h * 0.68)),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 3, cv2.LINE_AA)
+
+    # 3) Precise box on the exact detected pixels
+    cv2.rectangle(frame, (bx1, by1), (bx2, by2), red, 3)
+
     return frame
 
 
@@ -71,6 +117,19 @@ class CameraWorker:
         with self._frame_lock:
             return self._latest_frame.copy() if self._latest_frame is not None else None
 
+    def _save_thumbnail(self, frame, clip_path):
+        """Save the peak-detection frame (already has the full alert overlay
+        baked in) as a JPEG next to the clip, used as the video poster/thumbnail
+        in the dashboard's alert list so the striking frame is visible before
+        anyone even clicks play."""
+        thumb_path = clip_path.replace(".mp4", "_thumb.jpg")
+        try:
+            cv2.imwrite(thumb_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            return thumb_path
+        except Exception as e:
+            print(f"[{self.camera_id}] Failed to save thumbnail: {e}")
+            return None
+
     def _run(self):
         while not self._stop_event.is_set():
             # Support webcam testing — pass "webcam" or "0" as URL
@@ -99,6 +158,7 @@ class CameraWorker:
             red_detected_prev = False
             alert_start_time = None
             peak_pixels = 0
+            peak_frame = None
             clip_path = None
             last_bbox = None
             bbox_hold_counter = 0
@@ -142,13 +202,14 @@ class CameraWorker:
 
                 # Draw ROI outline / detection box directly onto the frame so it's
                 # baked into whatever gets written to the alert clip below.
-                _annotate_frame(frame, self.roi, display_bbox)
+                _annotate_frame(frame, self.roi, display_bbox, t=self.frame_count / fps)
 
                 # ── Alert state machine ──────────────────
                 if red_now and not red_detected_prev:
                     # Red JUST started — begin recording
                     alert_start_time = time.time()
                     peak_pixels = pixel_count
+                    peak_frame = frame.copy()
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                     clip_path = os.path.join(
                         CLIPS_DIR,
@@ -159,23 +220,28 @@ class CameraWorker:
 
                 elif red_now and red_detected_prev:
                     # Red is CONTINUING — keep writing
-                    peak_pixels = max(peak_pixels, pixel_count)
+                    if pixel_count > peak_pixels:
+                        peak_pixels = pixel_count
+                        peak_frame = frame.copy()
                     self.clip_writer.write_frame(frame, red_now)
 
                     alert_duration = time.time() - alert_start_time
                     if alert_duration > 30:
                         # Hit max duration — force save
                         saved_path = self.clip_writer.stop_recording()
+                        thumb_path = self._save_thumbnail(peak_frame, saved_path) if peak_frame is not None else None
                         alert_store.add(
                             camera_id=self.camera_id,
                             camera_name=self.camera_name,
                             clip_path=saved_path,
                             duration_sec=alert_duration,
-                            peak_pixels=peak_pixels
+                            peak_pixels=peak_pixels,
+                            thumbnail_path=thumb_path
                         )
                         self.alert_count += 1
                         alert_start_time = None
                         peak_pixels = 0
+                        peak_frame = None
                         red_detected_prev = False
                         continue
 
@@ -186,16 +252,19 @@ class CameraWorker:
                     if self.clip_writer.should_stop():
                         alert_duration = time.time() - alert_start_time
                         saved_path = self.clip_writer.stop_recording()
+                        thumb_path = self._save_thumbnail(peak_frame, saved_path) if peak_frame is not None else None
                         alert_store.add(
                             camera_id=self.camera_id,
                             camera_name=self.camera_name,
                             clip_path=saved_path,
                             duration_sec=alert_duration,
-                            peak_pixels=peak_pixels
+                            peak_pixels=peak_pixels,
+                            thumbnail_path=thumb_path
                         )
                         self.alert_count += 1
                         alert_start_time = None
                         peak_pixels = 0
+                        peak_frame = None
 
                 red_detected_prev = red_now
 
@@ -207,12 +276,14 @@ class CameraWorker:
                 if self.clip_writer.recording:
                     alert_duration = time.time() - alert_start_time
                     saved_path = self.clip_writer.stop_recording()
+                    thumb_path = self._save_thumbnail(peak_frame, saved_path) if peak_frame is not None else None
                     alert_store.add(
                         camera_id=self.camera_id,
                         camera_name=self.camera_name,
                         clip_path=saved_path,
                         duration_sec=alert_duration,
-                        peak_pixels=peak_pixels
+                        peak_pixels=peak_pixels,
+                        thumbnail_path=thumb_path
                     )
                     self.alert_count += 1
                 self.progress_pct = 100

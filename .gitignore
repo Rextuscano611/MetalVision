@@ -4,6 +4,9 @@ venv/
 # Clips — never commit alert videos
 backend/clips/
 
+# Persistent app data (SQLite alert history) — machine-specific, never commit
+backend/data/
+
 # Test videos uploaded through the system
 backend/test_videos/
 

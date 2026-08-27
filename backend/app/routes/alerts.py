@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from app.alert_store import alert_store
+from app.paths import CLIPS_DIR
 import os
 
 router = APIRouter()
@@ -21,7 +22,7 @@ def get_alerts():
 
 @router.get("/alerts/clip/{filename}")
 def get_clip(filename: str, request: Request):
-    clip_path = os.path.join("clips", filename)
+    clip_path = os.path.join(CLIPS_DIR, filename)
     if not os.path.exists(clip_path):
         raise HTTPException(status_code=404, detail="Clip not found")
 
@@ -66,9 +67,40 @@ def get_clip(filename: str, request: Request):
     )
 
 
+@router.get("/alerts/thumbnail/{filename}")
+def get_thumbnail(filename: str):
+    thumb_path = os.path.join(CLIPS_DIR, filename)
+    if not os.path.exists(thumb_path):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return FileResponse(thumb_path, media_type="image/jpeg")
+
+
 @router.patch("/alerts/{alert_id}/ack")
 def acknowledge_alert(alert_id: str, req: AckRequest):
     alert = alert_store.acknowledge(alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
+
+
+@router.patch("/alerts/{alert_id}/dismiss")
+def dismiss_alert(alert_id: str):
+    """Hides the alert from the live monitor feed only. It stays in the
+    database and keeps counting toward the History page's analytics — use
+    DELETE /alerts/{id} instead for permanent removal."""
+    alert = alert_store.dismiss(alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
+
+
+@router.patch("/alerts/{alert_id}/hide-thumbnail")
+def hide_thumbnail(alert_id: str):
+    """Hides the thumbnail from the History page's image grid ONLY. The
+    event record, clip file, and thumbnail file are all left untouched, so
+    every stat and chart on the History page still counts it — this is a
+    display-only preference, not a deletion."""
+    alert = alert_store.hide_thumbnail(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     return alert

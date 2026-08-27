@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetalVision — Detection History</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #F4F3EE;
+  --bg2: #EAE8E0;
+  --bg3: #E0DDD3;
+  --line: #D6D2C4;
+  --ink: #1A1A18;
+  --ink-soft: #8A8478;
+  --accent: #C0392B;
+  --steel: #4A5A68;
+  --white: #F4F3EE;
+
+  /* Analytics-only palette — richer & more varied than the live dashboard's
+     muted brand tokens, used purely for chart data encoding. */
+  --c1: #E8583F;  /* coral */
+  --c2: #2FA88A;  /* teal */
+  --c3: #4C7FD6;  /* blue */
+  --c4: #E8A93F;  /* gold */
+  --c5: #8B6FD1;  /* violet */
+  --c6: #3FB6C2;  /* cyan */
+  --c7: #D6598F;  /* pink */
+  --c8: #7FA83F;  /* olive */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 56px;
+  background: var(--bg2); border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(192,57,43,0.18);
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+.topbar-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+.back-link {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  color: #fff; text-decoration: none; padding: 7px 14px;
+  background: var(--ink); border-radius: 4px; transition: opacity 0.15s;
+}
+.back-link:hover { opacity: 0.85; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: 28px 32px 60px; }
+.page-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.page-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin-bottom: 28px; }
+
+/* STAT CARDS */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 16px 18px; position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.stat-card.c-total::before { background: var(--c1); }
+.stat-card.c-today::before { background: var(--c3); }
+.stat-card.c-week::before { background: var(--c2); }
+.stat-card .num { font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; line-height: 1; }
+.stat-card .label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; }
+
+/* PANELS */
+.panel-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; margin-bottom: 18px; }
+.panel {
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px 22px;
+}
+.panel-title {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-soft); margin-bottom: 16px;
+}
+.chart-box { position: relative; height: 220px; }
+.chart-box.tall { height: 260px; }
+
+/* CAMERA LEGEND (paired with doughnut) */
+.legend-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.legend-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend-count { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); }
+
+.empty-panel { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); text-align: center; padding: 30px 0; }
+
+/* THUMBNAIL GRID */
+.grid-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.thumb-tile {
+  position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--line);
+  background: #000; aspect-ratio: 16/10;
+  box-shadow: 0 1px 2px rgba(26,26,24,0.05); transition: box-shadow 0.15s ease;
+}
+.thumb-tile:hover { box-shadow: 0 4px 16px rgba(26,26,24,0.12); }
+.thumb-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-delete {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(26,26,24,0.55); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.15s;
+}
+.thumb-delete:hover { background: var(--accent); }
+.thumb-caption {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+  color: #fff; font-size: 11px; pointer-events: none;
+}
+.thumb-caption .t-cam { font-weight: 600; }
+.thumb-caption .t-time { font-family: 'IBM Plex Mono', monospace; font-size: 10px; opacity: 0.85; }
+
+@media (max-width: 860px) {
+  .panel-grid { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: 1fr; }
+}
+
+/* ZOOM LIGHTBOX (image only) */
+#zoomLightbox {
+  display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.82);
+  z-index: 300; align-items: center; justify-content: center; padding: 30px;
+}
+#zoomLightbox .zoom-box { max-width: 900px; width: 100%; }
+#zoomLightbox .zoom-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+#zoomLightbox .zoom-title { color: #fff; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+#zoomLightbox .zoom-actions { display: flex; align-items: center; gap: 8px; }
+#zoomLightbox .zoom-btn {
+  width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: opacity 0.15s;
+}
+#zoomLightbox .zoom-btn:hover { opacity: 0.8; }
+#zoomLightbox .zoom-minimize { background: rgba(255,255,255,0.12); color: #fff; }
+#zoomLightbox .zoom-delete { background: var(--accent); color: #fff; }
+#zoomLightbox img {
+  width: 100%; max-height: 76vh; object-fit: contain; display: block;
+  border-radius: 8px; background: #000;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">Sovereign Metals Limited</div>
+    <div class="topbar-sub">Detection History &amp; Analytics</div>
+  </div>
+  <a class="back-link" href="index.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Live Monitor
+  </a>
+</div>
+
+<div class="page">
+  <div class="page-title">Detection History</div>
+  <div class="page-sub" id="pageSub">Loading…</div>
+
+  <div class="stat-row">
+    <div class="stat-card c-total">
+      <div class="num" id="statTotal">–</div>
+      <div class="label">Total Events</div>
+    </div>
+    <div class="stat-card c-today">
+      <div class="num" id="statToday">–</div>
+      <div class="label">Today</div>
+    </div>
+    <div class="stat-card c-week">
+      <div class="num" id="statWeek">–</div>
+      <div class="label">This Week</div>
+    </div>
+  </div>
+
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-title">Events per day — last 30 days</div>
+      <div class="chart-box tall" id="dailyChartWrap"><canvas id="dailyChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Events by camera</div>
+      <div class="chart-box" id="camChartWrap"><canvas id="camChart"></canvas></div>
+      <div class="legend-list" id="camLegend"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px;">
+    <div class="panel-title">Events by hour of day</div>
+    <div class="chart-box" id="hourChartWrap"><canvas id="hourChart"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="grid-header">
+      <div class="panel-title" style="margin-bottom:0;">Saved Thumbnails</div>
+      <div class="page-sub" id="thumbCount" style="margin-bottom:0;"></div>
+    </div>
+    <div id="thumbGrid" class="thumb-grid"></div>
+  </div>
+</div>
+
+<!-- ZOOM LIGHTBOX -->
+<div id="zoomLightbox">
+  <div class="zoom-box">
+    <div class="zoom-header">
+      <div class="zoom-title" id="zoomTitle"></div>
+      <div class="zoom-actions">
+        <button class="zoom-btn zoom-minimize" onclick="closeZoom()" title="Minimize">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+        <button class="zoom-btn zoom-delete" id="zoomDeleteBtn" title="Delete">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </div>
+    </div>
+    <img id="zoomImg" src="" alt="Detection thumbnail, zoomed">
+  </div>
+</div>
+
+<script>
+const API = "/api";
+let allAlerts = [];
+const PALETTE = ['#E8583F', '#2FA88A', '#4C7FD6', '#E8A93F', '#8B6FD1', '#3FB6C2', '#D6598F', '#7FA83F'];
+
+async function load() {
+  if (typeof Chart === 'undefined') {
+    document.getElementById('pageSub').textContent =
+      'Chart library failed to load from CDN — check your internet connection or firewall/ad-blocker settings, then refresh.';
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/alerts`);
+    const data = await res.json();
+    allAlerts = data.alerts || [];
+    document.getElementById('pageSub').textContent =
+      `${allAlerts.length} detection event${allAlerts.length === 1 ? '' : 's'} on record`;
+    renderStats();
+    renderDailyChart();
+    renderHourChart();
+    renderCameraChart();
+    renderThumbGrid();
+  } catch {
+    document.getElementById('pageSub').textContent = 'Could not reach server.';
+  }
+}
+
+// ── STATS ────────────────────────────────────
+function renderStats() {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+
+  let today = 0, week = 0;
+  for (const a of allAlerts) {
+    const d = new Date(a.timestamp.replace(' ', 'T'));
+    if (a.timestamp.slice(0, 10) === todayStr) today++;
+    if (d >= weekAgo) week++;
+  }
+  document.getElementById('statTotal').textContent = allAlerts.length;
+  document.getElementById('statToday').textContent = today;
+  document.getElementById('statWeek').textContent = week;
+}
+
+// ── DAILY CHART — gradient area/line, last 30 days ─────
+function renderDailyChart() {
+  if (!allAlerts.length) {
+    document.getElementById('dailyChartWrap').innerHTML = '<div class="empty-panel">No events recorded yet</div>';
+    return;
+  }
+  const days = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const counts = {};
+  for (const a of allAlerts) {
+    const key = a.timestamp.slice(0, 10);
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const values = days.map(d => counts[d] || 0);
+  const labels = days.map(d => d.slice(5).replace('-', '/'));
+
+  const ctx = document.getElementById('dailyChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+  gradient.addColorStop(0, 'rgba(232,88,63,0.45)');
+  gradient.addColorStop(1, 'rgba(232,88,63,0.02)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#E8583F',
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#E8583F',
+        borderWidth: 2.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { family: 'IBM Plex Mono', size: 9 }, color: '#8A8478' } },
+        y: { beginAtZero: true, ticks: { precision: 0, font: { family: 'IBM Plex Mono', size: 9 }, color: '#8A8478' }, grid: { color: '#E0DDD3' } }
+      }
+    }
+  });
+}
+
+// ── HOURLY CHART — heatmap-style bars (color encodes volume) ─────
+function renderHourChart() {
+  if (!allAlerts.length) {
+    document.getElementById('hourChartWrap').innerHTML = '<div class="empty-panel">No events recorded yet</div>';
+    return;
+  }
+  const counts = new Array(24).fill(0);
+  for (const a of allAlerts) {
+    const hour = parseInt(a.timestamp.slice(11, 13), 10);
+    if (!isNaN(hour)) counts[hour]++;
+  }
+  const max = Math.max(1, ...counts);
+  // Cool steel (low) -> warm coral (high), so the color itself shows the busiest hours
+  const colorFor = (v) => {
+    const t = v / max;
+    const r = Math.round(74 + t * (232 - 74));
+    const g = Math.round(90 + t * (88 - 90));
+    const b = Math.round(104 + t * (63 - 104));
+    return `rgb(${r},${g},${b})`;
+  };
+
+  new Chart(document.getElementById('hourChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: counts.map((_, h) => `${h}:00`),
+      datasets: [{
+        data: counts,
+        backgroundColor: counts.map(colorFor),
+        borderRadius: 4,
+        barPercentage: 0.75,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { family: 'IBM Plex Mono', size: 9 }, color: '#8A8478' } },
+        y: { beginAtZero: true, ticks: { precision: 0, font: { family: 'IBM Plex Mono', size: 9 }, color: '#8A8478' }, grid: { color: '#E0DDD3' } }
+      }
+    }
+  });
+}
+
+// ── CAMERA BREAKDOWN — doughnut + custom legend ─────
+function renderCameraChart() {
+  const wrap = document.getElementById('camChartWrap');
+  const legend = document.getElementById('camLegend');
+  if (!allAlerts.length) {
+    wrap.innerHTML = '<div class="empty-panel">No events recorded yet</div>';
+    legend.innerHTML = '';
+    return;
+  }
+  const counts = {};
+  for (const a of allAlerts) counts[a.camera_name] = (counts[a.camera_name] || 0) + 1;
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const colors = entries.map((_, i) => PALETTE[i % PALETTE.length]);
+
+  new Chart(document.getElementById('camChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e => e[0]),
+      datasets: [{
+        data: entries.map(e => e[1]),
+        backgroundColor: colors,
+        borderColor: '#EAE8E0',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  legend.innerHTML = entries.map(([name, count], i) => `
+    <div class="legend-row">
+      <div class="legend-dot" style="background:${colors[i]}"></div>
+      <div class="legend-name">${name}</div>
+      <div class="legend-count">${count}</div>
+    </div>
+  `).join('');
+}
+
+// ── THUMBNAIL GRID (image only — no click-to-play) ─────
+function renderThumbGrid() {
+  const withThumbs = allAlerts.filter(a => a.thumbnail_filename && !a.thumbnail_hidden);
+  document.getElementById('thumbCount').textContent =
+    `${withThumbs.length} image${withThumbs.length === 1 ? '' : 's'}`;
+
+  const el = document.getElementById('thumbGrid');
+  if (!withThumbs.length) {
+    el.innerHTML = '<div class="empty-panel">No saved thumbnails yet — they appear here once new detection events occur.</div>';
+    return;
+  }
+  el.innerHTML = withThumbs.map(a => `
+    <div class="thumb-tile" data-id="${a.id}" onclick="openZoom('${a.id}')">
+      <img src="${API}/alerts/thumbnail/${encodeURIComponent(a.thumbnail_filename)}" loading="lazy" alt="Detection thumbnail">
+      <button class="thumb-delete" onclick="event.stopPropagation(); hideThumbnail('${a.id}')" title="Remove from this grid (keeps the event in your analytics)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="thumb-caption">
+        <div class="t-cam">${a.camera_name}</div>
+        <div class="t-time">${a.timestamp}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function hideThumbnail(alertId) {
+  const tile = document.querySelector(`.thumb-tile[data-id="${alertId}"]`);
+  if (tile) { tile.style.opacity = '0.3'; tile.style.pointerEvents = 'none'; }
+  try {
+    const res = await fetch(`${API}/alerts/${alertId}/hide-thumbnail`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('hide failed');
+    // Update local state and re-render ONLY the grid — deliberately not
+    // touching stats/charts, since this is display-only and must never
+    // change the numbers (that's the whole point of this action).
+    const a = allAlerts.find(x => x.id === alertId);
+    if (a) a.thumbnail_hidden = true;
+    renderThumbGrid();
+  } catch {
+    if (tile) { tile.style.opacity = '1'; tile.style.pointerEvents = 'auto'; }
+  }
+}
+
+// ── ZOOM LIGHTBOX (image only) ─────────────────
+function openZoom(alertId) {
+  const a = allAlerts.find(x => x.id === alertId);
+  if (!a || !a.thumbnail_filename) return;
+  document.getElementById('zoomImg').src = `${API}/alerts/thumbnail/${encodeURIComponent(a.thumbnail_filename)}`;
+  document.getElementById('zoomTitle').textContent = `${a.camera_name} · ${a.timestamp}`;
+  document.getElementById('zoomDeleteBtn').onclick = () => hideThumbnail(alertId);
+  document.getElementById('zoomLightbox').style.display = 'flex';
+}
+
+function closeZoom() {
+  document.getElementById('zoomLightbox').style.display = 'none';
+  document.getElementById('zoomImg').src = '';
+}
+
+document.getElementById('zoomLightbox').addEventListener('click', (e) => {
+  if (e.target.id === 'zoomLightbox') closeZoom();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeZoom();
+});
+
+load();
+</script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,4 +24,17 @@ def health():
 # Serve the frontend (index.html + any assets) at "/" — same port as the API,
 # so the browser sees everything as one origin. Must be mounted LAST so it
 # doesn't shadow the /api and /health routes above.
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # .../backend/app
+_frontend_candidates = [
+    os.path.join(BASE_DIR, "..", "..", "frontend"),  # local layout: backend/app -> up 2 -> frontend
+    os.path.join(BASE_DIR, "..", "frontend"),          # server layout: app -> up 1 -> frontend
+]
+FRONTEND_DIR = next(
+    (os.path.abspath(p) for p in _frontend_candidates if os.path.isdir(p)),
+    None
+)
+
+if FRONTEND_DIR:
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+else:
+    print("WARNING: could not locate frontend/ directory - static files not mounted")

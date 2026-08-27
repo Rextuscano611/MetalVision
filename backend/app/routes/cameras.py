@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 from app.camera_manager import camera_manager
+from app.paths import UPLOADED_VIDEOS_DIR
 import cv2
 import os
 import uuid
@@ -10,8 +11,6 @@ import shutil
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploaded_videos"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_VIDEO_EXT = {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".webm"}
 
 
@@ -48,7 +47,7 @@ def upload_video(name: str = Form(...), file: UploadFile = File(...)):
         )
 
     safe_name = f"{uuid.uuid4().hex}{ext}"
-    dest_path = os.path.join(UPLOAD_DIR, safe_name)
+    dest_path = os.path.join(UPLOADED_VIDEOS_DIR, safe_name)
     with open(dest_path, "wb") as out:
         shutil.copyfileobj(file.file, out)
 
